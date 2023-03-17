@@ -1,6 +1,7 @@
 const sql = require('mssql');
 const express = require('express');
 const app = express();
+const port = process.env.PORT || 80;
 
 const config = {
   server: 'widgetdataserver.database.windows.net',
@@ -109,8 +110,8 @@ app.get('/atms/coop', (req, res) => {
 
 
 // Start the server
-app.listen(3000, () => {
-  console.log('Server started on port 3000');
+app.listen(port, () => {
+  console.log(`Server started on port ${port}`);
 });
 
 
