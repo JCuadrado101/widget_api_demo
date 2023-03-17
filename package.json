@@ -2,9 +2,8 @@
   "name": "my-app",
   "version": "1.0.0",
   "description": "A simple Node.js app",
-  "main": "app.js",
+  "main": "server.js",
   "dependencies": {
-    "express": "^4.17.1",
-    "mssql": "9.1.1"
+    "express": "^4.17.1"
   }
 }
