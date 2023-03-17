@@ -1,5 +1,10 @@
 {
-    "name": "widget_api_demo",
-    "version": "1.0.0",
-    "author": "Jordan Cuadrado"
+  "name": "my-app",
+  "version": "1.0.0",
+  "description": "A simple Node.js app",
+  "main": "app.js",
+  "dependencies": {
+    "express": "^4.17.1",
+    "mssql": "9.1.1"
   }
+}
