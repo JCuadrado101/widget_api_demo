@@ -4,6 +4,7 @@
   "description": "A simple Node.js app",
   "main": "server.js",
   "dependencies": {
-    "express": "^4.17.1"
+    "express": "^4.17.1",
+    "mssql": "9.1.1"
   }
 }
