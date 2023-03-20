@@ -5,6 +5,7 @@
   "main": "server.js",
   "dependencies": {
     "express": "^4.17.1",
+    "joi": "^17.8.4",
     "mssql": "9.1.1"
   }
 }
