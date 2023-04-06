@@ -180,71 +180,108 @@ app.get('/atms/coop', (req, res) => {
   })
 })
 
-const schema = Joi.object({
-  lat: Joi.number().required(),
-  long: Joi.number().required(),
-  radius: Joi.number().required()
-});
+
+function calculateDistance(lat1, lng1, lat2, lng2) {
+  const earthRadiusMi = 3959; // Earth's radius in miles
+  const latDiff = degToRad(lat2 - lat1);
+  const lngDiff = degToRad(lng2 - lng1);
+  const a =
+    Math.sin(latDiff / 2) * Math.sin(latDiff / 2) +
+    Math.cos(degToRad(lat1)) * Math.cos(degToRad(lat2)) *
+    Math.sin(lngDiff / 2) * Math.sin(lngDiff / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distanceMi = earthRadiusMi * c;
+  return parseFloat(distanceMi.toFixed(2)) + ' mi';
+}
+
+function degToRad(deg) {
+  return deg * (Math.PI / 180);
+}
+
 
 app.get('/atms/search', (req, res) => {
-  const { error, value } = schema.validate(req.query);
-
   res.setHeader("Access-Control-Allow-Origin", "*");
 
-  if (error) {
-    res.status(400).send(error.details[0].message);
-    return;
-  }
-  const { lat, long, radius } = value;
+  // Extract latitude, longitude, and radius from query parameters
+  const { lat, lng, radius } = req.query;
 
-  let latlngCalc = calculateCoordinatesWithinRadius(lat, long, radius);
-  let findmaxmin = findMinMaxLatAndLng(latlngCalc);
+  // Validate query parameters using Joi
+  const schema = Joi.object({
+    lat: Joi.number().required(),
+    lng: Joi.number().required(),
+    radius: Joi.number().required()
+  });
+
+  const { error } = schema.validate({ lat, lng, radius });
+
+  if (error) {
+    // Return error response if query parameters are invalid
+    return res.status(400).json({ error: error.message });
+  }
 
   pool.connect(err => {
     if (err) {
-      console.error('Error connecting to Azure SQL database', err)
+      console.error('Error connecting to Azure SQL database', err);
     } else {
-      const request = new sql.Request(pool)
-      request.query(`
-        SELECT * FROM dbo.widget WHERE 
-          attributeslatitude > ${findmaxmin.minLat} AND attributeslatitude < ${findmaxmin.maxLat} AND 
-          attributeslongitude > ${findmaxmin.minLng} AND attributeslongitude < ${findmaxmin.maxLng};`, 
-          (err, result) => {
+      const request = new sql.Request(pool);
+      request.query('SELECT * FROM dbo.widget', (err, result) => {
         if (err) {
-          console.error('Error executing query', err)
+          console.error('Error executing query', err);
         } else {
-  
+          const centerLat = parseFloat(lat);
+          const centerLng = parseFloat(lng);
+          const radiusMiles = parseFloat(radius);
+
+          // Call the calculateCoordinatesWithinRadius function to get array of coordinates within radius
+          const coordinates = calculateCoordinatesWithinRadius(centerLat, centerLng, radiusMiles);
+
+          // Call the findMinMaxLatAndLng function to get min and max latitudes and longitudes
+          const { minLat, maxLat, minLng, maxLng } = findMinMaxLatAndLng(coordinates);
+
+          // Filter the results based on min and max latitudes and longitudes
+          const filteredResults = result.recordset.filter(record => {
+            const lat = record.attributeslatitude;
+            const lng = record.attributeslongitude;
+            return lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng;
+          });
+
+          // Calculate distance from center for each filtered result
           const output = {
             meta: {
               updated: new Date().toISOString()
             },
-            data: result.recordset.map(record => ({
-              id: record.id,
-              type: record.type,
-              Access: record.Access,
-              DisplayOnWeb: record.DisplayOnWeb,
-              attributes: {
-                creditUnion: record.attributescreditUnion,
-                transactionTypes: record.attributestransactionTypes,
-                name: record.attributesname,
-                address1: record.attributesaddress1,
-                City: record.attributesCity,
-                State: record.attributesState,
-                zipcode: record.attributeszipcode,
-                locationDescription: record.attributeslocationDescription,
-                latitude: record.attributeslatitude,
-                longitude: record.attributeslongitude
-              }
-            }))
-          }
-
+            data: filteredResults.map(record => {
+              const lat = record.attributeslatitude;
+              const lng = record.attributeslongitude;
+              const distance = calculateDistance(centerLat, centerLng, lat, lng);
+              return {
+                id: record.id,
+                type: record.type,
+                Access: record.Access,
+                DisplayOnWeb: record.DisplayOnWeb,
+                attributes: {
+                  creditUnion: record.attributescreditUnion,
+                  transactionTypes: record.attributestransactionTypes,
+                  name: record.attributesname,
+                  address1: record.attributesaddress1,
+                  City: record.attributesCity,
+                  State: record.attributesState,
+                  zipcode: record.attributeszipcode,
+                  locationDescription: record.attributeslocationDescription,
+                  latitude: lat,
+                  longitude: lng,
+                  distance: distance // Add distance to the response
+                }
+              };
+            })
+          };
           res.json(output);
-          // console.log(output)
         }
-      })
+      });
     }
-  })
-})
+  });
+});
+
 
 // Start the server
 app.listen(port, () => {
