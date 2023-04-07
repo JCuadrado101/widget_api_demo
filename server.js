@@ -191,7 +191,8 @@ function calculateDistance(lat1, lng1, lat2, lng2) {
     Math.sin(lngDiff / 2) * Math.sin(lngDiff / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   const distanceMi = earthRadiusMi * c;
-  return parseFloat(distanceMi.toFixed(2)) + ' mi';
+  return distanceMi.toFixed(2);
+  // return parseFloat(distanceMi.toFixed(2)) + ' mi';
 }
 
 function degToRad(deg) {
